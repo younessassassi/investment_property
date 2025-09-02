@@ -9,6 +9,8 @@ export interface YearResultBase {
   taxableIncome: number;
   taxes: number;
   afterTaxCashFlow: number;
+  afterTaxCFBeforeDep: number; // after-tax CF if depreciation weren't deductible
+  taxShieldDep: number; // reduction in taxes due to depreciation
 }
 
 export interface YearResultFinanced extends YearResultBase {
@@ -22,8 +24,10 @@ export interface ScenarioResults {
   yearly: (YearResultBase | YearResultFinanced)[];
   cashFlows: number[]; // includes initial investment negative outflow at t0, annual after-tax CF, final sale proceeds net taxes
   irr: number | null;
-  totalWealth: number; // sum of positive CF excluding initial? We'll treat as final net worth increase.
-  saleProceedsNet: number;
+  totalWealth: number; // sum of CF after t0 (operations + sale net)
+  saleProceedsNet: number; // net after taxes and payoff (if any)
+  operationsCashFlow: number; // sum of annual after-tax cash flows (excluding sale)
+  totalRevenue: number; // operationsCashFlow + saleProceedsNet
 }
 
 export interface AnalysisResult {
@@ -60,10 +64,14 @@ export function computeAnalysis(inputs: InputState): AnalysisResult {
   let expenses = baseExpenses;
   for (let y = 1; y <= inputs.horizonYears; y++) {
     const noi = rent - expenses;
-    const taxableIncome = noi - annualDep;
-    const taxes = Math.max(taxableIncome, 0) * inputs.taxRate; // losses assumed to offset other income? simplistic
-    const afterTaxCashFlow = noi - taxes; // no debt service
-    cashYearly.push({ year: y, rent, expenses, noi, depreciation: annualDep, taxableIncome, taxes, afterTaxCashFlow });
+  const taxableIncomeNoDep = noi; // without depreciation
+  const taxesNoDep = Math.max(taxableIncomeNoDep, 0) * inputs.taxRate;
+  const taxableIncome = noi - annualDep;
+  const taxes = Math.max(taxableIncome, 0) * inputs.taxRate;
+  const afterTaxCFBeforeDep = noi - taxesNoDep;
+  const afterTaxCashFlow = noi - taxes;
+  const taxShieldDep = taxesNoDep - taxes;
+  cashYearly.push({ year: y, rent, expenses, noi, depreciation: annualDep, taxableIncome, taxes, afterTaxCashFlow, afterTaxCFBeforeDep, taxShieldDep });
     rent *= (1 + inputs.rentGrowth);
     expenses *= (1 + inputs.expenseGrowth);
   }
@@ -83,7 +91,8 @@ export function computeAnalysis(inputs: InputState): AnalysisResult {
   const initialInvestment = -inputs.purchasePrice;
   const cashCF: number[] = [initialInvestment, ...cashYearly.map(r => r.afterTaxCashFlow), saleNet];
   const cashIrr = irr(cashCF);
-  const cashTotalWealth = cashCF.slice(1).reduce((a, b) => a + b, 0);
+  const operationsCashFlowCash = cashYearly.reduce((a,b)=>a+b.afterTaxCashFlow,0);
+  const cashTotalWealth = operationsCashFlowCash + saleNet;
 
   // FINANCED SCENARIO
   const loanAmount = inputs.purchasePrice * inputs.loanPercent;
@@ -107,10 +116,14 @@ export function computeAnalysis(inputs: InputState): AnalysisResult {
     }
     const debtService = principalPaid + interestPaid;
     const noiPreDebt = rent - expenses;
-    const taxableIncome = (noiPreDebt - interestPaid) - annualDep; // interest deductible, principal not
-    const taxes = Math.max(taxableIncome, 0) * inputs.taxRate;
-    const afterTaxCashFlow = noiPreDebt - debtService - taxes;
-    finYearly.push({ year: y, rent, expenses, noi: noiPreDebt, depreciation: annualDep, taxableIncome, taxes, afterTaxCashFlow, loanBalance: Math.max(balance,0), principalPaid, interestPaid, debtService });
+  const taxableIncomeNoDep = (noiPreDebt - interestPaid);
+  const taxesNoDep = Math.max(taxableIncomeNoDep, 0) * inputs.taxRate;
+  const taxableIncome = taxableIncomeNoDep - annualDep; // interest deductible, principal not
+  const taxes = Math.max(taxableIncome, 0) * inputs.taxRate;
+  const afterTaxCFBeforeDep = (noiPreDebt - debtService) - taxesNoDep;
+  const afterTaxCashFlow = (noiPreDebt - debtService) - taxes;
+  const taxShieldDep = taxesNoDep - taxes;
+  finYearly.push({ year: y, rent, expenses, noi: noiPreDebt, depreciation: annualDep, taxableIncome, taxes, afterTaxCashFlow, afterTaxCFBeforeDep, taxShieldDep, loanBalance: Math.max(balance,0), principalPaid, interestPaid, debtService });
     rent *= (1 + inputs.rentGrowth);
     expenses *= (1 + inputs.expenseGrowth);
   }
@@ -126,11 +139,12 @@ export function computeAnalysis(inputs: InputState): AnalysisResult {
 
   const financedCF: number[] = [-downPayment, ...finYearly.map(r => r.afterTaxCashFlow), saleNetFin];
   const financedIrr = irr(financedCF);
-  const financedTotalWealth = financedCF.slice(1).reduce((a,b)=>a+b,0);
+  const operationsCashFlowFin = finYearly.reduce((a,b)=>a+b.afterTaxCashFlow,0);
+  const financedTotalWealth = operationsCashFlowFin + saleNetFin;
 
   return {
     inputs,
-    cash: { yearly: cashYearly, cashFlows: cashCF, irr: cashIrr, totalWealth: cashTotalWealth, saleProceedsNet: saleNet },
-    financed: { yearly: finYearly, cashFlows: financedCF, irr: financedIrr, totalWealth: financedTotalWealth, saleProceedsNet: saleNetFin },
+  cash: { yearly: cashYearly, cashFlows: cashCF, irr: cashIrr, totalWealth: cashTotalWealth, saleProceedsNet: saleNet, operationsCashFlow: operationsCashFlowCash, totalRevenue: cashTotalWealth },
+  financed: { yearly: finYearly, cashFlows: financedCF, irr: financedIrr, totalWealth: financedTotalWealth, saleProceedsNet: saleNetFin, operationsCashFlow: operationsCashFlowFin, totalRevenue: financedTotalWealth },
   };
 }

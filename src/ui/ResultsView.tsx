@@ -21,8 +21,8 @@ export const ResultsView: React.FC<{ analysis: AnalysisResult }> = ({ analysis }
         <div className="p-2 text-sm bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">Warning: Negative after-tax cash flow detected in financed scenario.</div>
       )}
       <div className="grid md:grid-cols-2 gap-6">
-        <SummaryCard title="Cash Scenario" irr={cash.irr} total={cash.totalWealth} />
-        <SummaryCard title="Financed Scenario" irr={financed.irr} total={financed.totalWealth} />
+  <SummaryCard title="Cash Scenario" irr={cash.irr} total={cash.totalWealth} sale={cash.saleProceedsNet} ops={cash.operationsCashFlow} />
+  <SummaryCard title="Financed Scenario" irr={financed.irr} total={financed.totalWealth} sale={financed.saleProceedsNet} ops={financed.operationsCashFlow} />
       </div>
       <div className="h-80 bg-white p-4 rounded shadow">
         <ResponsiveContainer width="100%" height="100%">
@@ -42,17 +42,23 @@ export const ResultsView: React.FC<{ analysis: AnalysisResult }> = ({ analysis }
   );
 };
 
-const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; }> = ({ title, irr, total }) => (
-  <div className="bg-white p-4 rounded shadow">
-    <h2 className="font-semibold mb-2">{title}</h2>
-    <p>IRR: {irr !== null ? (irr*100).toFixed(2)+ '%' : 'n/a'}</p>
-    <p>Total Wealth: {total.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
-  </div>
-);
+const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; sale: number; ops: number; }> = ({ title, irr, total, sale, ops }) => {
+  const totalRev = ops + sale;
+  return (
+    <div className="bg-white p-4 rounded shadow text-sm space-y-1">
+      <h2 className="font-semibold mb-2 text-base">{title}</h2>
+      <p><span className="font-medium">IRR:</span> {irr !== null ? (irr*100).toFixed(2)+ '%' : 'n/a'}</p>
+      <p><span className="font-medium">Operations Cash Flow:</span> {ops.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+      <p><span className="font-medium">Sale Proceeds (Net):</span> {sale.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+      <p><span className="font-medium">Total Revenue:</span> {totalRev.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+      <p><span className="font-medium">Total Wealth (Ops + Sale):</span> {total.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+    </div>
+  );
+};
 
 const TableView: React.FC<{ cash: YearResultBase[]; fin: YearResultFinanced[]; }> = ({ cash, fin }) => (
   <div className="overflow-auto bg-white rounded shadow">
-    <table className="min-w-full text-xs">
+  <table className="min-w-full text-xs">
       <thead className="bg-gray-100">
         <tr>
           <th className="p-2 text-left">Year</th>
@@ -65,6 +71,10 @@ const TableView: React.FC<{ cash: YearResultBase[]; fin: YearResultFinanced[]; }
           <th className="p-2 text-right">Taxable Fin</th>
           <th className="p-2 text-right">AfterTax CF Cash</th>
           <th className="p-2 text-right">AfterTax CF Fin</th>
+          <th className="p-2 text-right">Cash CF (No Dep)</th>
+          <th className="p-2 text-right">Fin CF (No Dep)</th>
+          <th className="p-2 text-right">Dep Shield Cash</th>
+          <th className="p-2 text-right">Dep Shield Fin</th>
           <th className="p-2 text-right">Loan Balance</th>
         </tr>
       </thead>
@@ -83,6 +93,10 @@ const TableView: React.FC<{ cash: YearResultBase[]; fin: YearResultFinanced[]; }
               <td className="p-2 text-right">{f.taxableIncome.toFixed(0)}</td>
               <td className="p-2 text-right">{c.afterTaxCashFlow.toFixed(0)}</td>
               <td className="p-2 text-right">{f.afterTaxCashFlow.toFixed(0)}</td>
+              <td className="p-2 text-right">{c.afterTaxCFBeforeDep.toFixed(0)}</td>
+              <td className="p-2 text-right">{f.afterTaxCFBeforeDep.toFixed(0)}</td>
+              <td className="p-2 text-right">{c.taxShieldDep.toFixed(0)}</td>
+              <td className="p-2 text-right">{f.taxShieldDep.toFixed(0)}</td>
               <td className="p-2 text-right">{f.loanBalance.toFixed(0)}</td>
             </tr>
           );
