@@ -133,23 +133,43 @@ async function getPropertyImage(address) {
   }
 }
 
-// Helper: Mock data fallback
+// Helper: Generate realistic mock data based on address
+// Uses regional price data to be more realistic than pure hash-based
 function getMockListing(address) {
   const hashCode = String(address)
     .split('')
     .reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
   
-  const basePrice = 300000 + Math.abs(hashCode % 500000);
+  // Determine region based on state in address (if present)
+  let basePrice = 400000;
+  
+  if (address.toLowerCase().includes('ca') || address.toLowerCase().includes('california')) {
+    basePrice = 650000; // California is more expensive
+  } else if (address.toLowerCase().includes('ny') || address.toLowerCase().includes('new york')) {
+    basePrice = 550000;
+  } else if (address.toLowerCase().includes('tx') || address.toLowerCase().includes('texas')) {
+    basePrice = 350000;
+  } else if (address.toLowerCase().includes('fl') || address.toLowerCase().includes('florida')) {
+    basePrice = 420000;
+  } else if (address.toLowerCase().includes('vt') || address.toLowerCase().includes('vermont')) {
+    basePrice = 350000;
+  }
+  
+  // Add variation based on hash
+  const variation = (Math.abs(hashCode) % 200000) - 100000; // -100k to +100k variation
+  const finalPrice = Math.max(150000, basePrice + variation);
+  const roundedPrice = Math.round(finalPrice / 10000) * 10000;
   
   return {
-    address,
-    listPrice: Math.round(basePrice / 1000) * 1000,
-    grossAnnualRent: estimateRentalIncome(basePrice),
-    propertyTax: estimatePropertyTax(basePrice),
+    address: address,
+    listPrice: roundedPrice,
+    grossAnnualRent: estimateRentalIncome(roundedPrice),
+    propertyTax: estimatePropertyTax(roundedPrice),
     insurance: 1200,
     hoa: 0,
     source: 'mock',
-    isMockData: true
+    isMockData: true,
+    dataQuality: 'estimated'
   };
 }
 
@@ -157,31 +177,35 @@ function getMockListing(address) {
 app.get('/api/listing', async (req, res) => {
   const address = req.query.address || 'Unknown Address';
   
-  console.log(`📍 Fetching listing for: ${address}`);
+  console.log(`\n📍 Fetching listing for: "${address}"`);
 
   try {
     // Try Redfin first (less aggressive bot protection)
+    console.log(`🔍 Attempting Redfin scrape...`);
     let listing = await scrapeRedfin(address);
 
     // Fall back to Zillow if Redfin fails
     if (!listing) {
-      console.log(`ℹ️  Redfin unsuccessful, trying Zillow...`);
+      console.log(`⚠️  Redfin unavailable, attempting Zillow...`);
       listing = await scrapeZillow(address);
     }
 
-    // Fall back to mock data if both fail
+    // Fall back to mock data if both fail (most likely case)
     if (!listing) {
-      console.log(`ℹ️  Using mock data for: ${address}`);
+      console.log(`⚠️  Web scraping failed, using estimated data based on region`);
       listing = getMockListing(address);
     } else {
+      // If we got real data, calculate missing fields
       if (!listing.grossAnnualRent && listing.listPrice) {
         listing.grossAnnualRent = estimateRentalIncome(listing.listPrice);
       }
       if (!listing.propertyTax && listing.listPrice) {
         listing.propertyTax = estimatePropertyTax(listing.listPrice);
       }
+      console.log(`✅ Successfully scraped real data from ${listing.source}`);
     }
 
+    // Ensure all fields exist
     if (!listing.imageUrl) {
       listing.imageUrl = await getPropertyImage(address);
     }
@@ -192,9 +216,10 @@ app.get('/api/listing', async (req, res) => {
       listing.hoa = 0;
     }
 
+    console.log(`✅ Response: $${listing.listPrice.toLocaleString()} | Rent: $${listing.grossAnnualRent.toLocaleString()}/yr | Tax: $${listing.propertyTax.toLocaleString()}`);
     res.json(listing);
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(`❌ Error: ${error.message}`);
     const mockListing = getMockListing(address);
     mockListing.imageUrl = await getPropertyImage(address);
     res.json(mockListing);

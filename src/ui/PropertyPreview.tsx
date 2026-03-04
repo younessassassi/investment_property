@@ -27,6 +27,8 @@ export const PropertyPreview: React.FC<PropertyPreviewProps> = ({ listing, loadi
     );
   }
 
+  const isMockData = (listing as any).isMockData || (listing as any).source === 'mock';
+
   return (
     <div className="bg-white rounded shadow overflow-hidden border-2 border-green-300">
       {/* Image */}
@@ -40,8 +42,8 @@ export const PropertyPreview: React.FC<PropertyPreviewProps> = ({ listing, loadi
               e.currentTarget.style.display = 'none';
             }}
           />
-          <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">
-            ✓ Loaded
+          <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-semibold text-white ${isMockData ? 'bg-amber-500' : 'bg-green-500'}`}>
+            {isMockData ? '📊 Estimated' : '✓ Real Data'}
           </div>
         </div>
       ) : (
@@ -55,6 +57,11 @@ export const PropertyPreview: React.FC<PropertyPreviewProps> = ({ listing, loadi
         <div>
           <div className="text-xs text-gray-500 font-medium">PROPERTY ADDRESS</div>
           <div className="font-semibold text-sm text-gray-800 break-words">{listing.address}</div>
+          {isMockData && (
+            <div className="text-xs text-amber-600 mt-1 p-2 bg-amber-50 rounded">
+              ⚠️ Data estimated based on region. Edit values for accuracy.
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 pt-2 border-t">

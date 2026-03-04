@@ -69,6 +69,10 @@ export const InputsForm: React.FC<{ value: InputState; onChange(v: InputState): 
 
   return (
     <div className="space-y-4">
+      <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded text-sm text-blue-800">
+        <strong>📝 How to use:</strong> Enter an address to auto-populate estimates, then manually adjust any values. Real MLS data requires a paid subscription.
+      </div>
+      
       <div className="bg-white p-4 rounded shadow space-y-3">
         <div className="font-semibold text-sm">📍 Property Address (Optional)</div>
         <div className="flex gap-2">
