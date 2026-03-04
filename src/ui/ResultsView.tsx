@@ -94,6 +94,17 @@ const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; 
           <p className="border-t border-orange-200 mt-1 pt-1 font-semibold text-orange-900">Net Operating Income: ${analysis.cash.yearly[0].noi.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
         </div>
       </div>
+      
+      <div className="space-y-1 border-l-4 border-red-300 pl-3 bg-red-50 py-2 px-2 rounded text-xs mb-3">
+        <p className="font-medium mb-1">📊 Year 1 Expense Breakdown</p>
+        <div className="ml-2 space-y-0.5 text-gray-700">
+          <p>Property Taxes: ${analysis.inputs.taxes.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p>Insurance: ${analysis.inputs.insurance.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p>HOA Fees: ${analysis.inputs.hoa.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p>Other Expenses: ${analysis.inputs.otherExpenses.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p className="border-t border-red-200 mt-1 pt-1 font-semibold text-red-900">Total: ${analysis.cash.yearly[0].expenses.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+        </div>
+      </div>
       <div className="space-y-1 border-l-4 border-blue-200 pl-3 bg-blue-50 py-2 px-2 rounded text-xs">
         <p><span className="font-medium">IRR:</span> {irr !== null ? (irr*100).toFixed(2)+ '%' : 'n/a'}</p>
         <p className="text-gray-600">Annual return on your money invested</p>
@@ -102,10 +113,25 @@ const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; 
         <p><span className="font-medium">💰 Operations Cash Flow:</span> ${ops.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
         <p className="text-gray-600 mb-2">Total cash from rent after all expenses & taxes over {analysis.inputs.horizonYears} years</p>
         <div className="ml-2 space-y-0.5 text-gray-700 border-t border-green-200 pt-2 mt-2">
-          <p><span className="text-gray-500">Year 1 NOI:</span> ${analysis.cash.yearly[0].noi.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-          <p><span className="text-gray-500">Less: Taxes (Year 1):</span> -${analysis.cash.yearly[0].taxes.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-          <p className="font-semibold"><span className="text-gray-500">Year 1 After-Tax CF:</span> ${analysis.cash.yearly[0].afterTaxCashFlow.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-          <p className="text-gray-500 text-xs mt-1">× {analysis.inputs.horizonYears} years average = ${ops.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          {isCash ? (
+            <>
+              <p><span className="text-gray-500">Year 1 NOI:</span> ${analysis.cash.yearly[0].noi.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p><span className="text-gray-500">Less: Taxes (Year 1):</span> -${analysis.cash.yearly[0].taxes.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p><span className="text-gray-500">Plus: Depreciation Tax Shield:</span> +${analysis.cash.yearly[0].taxShieldDep.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p className="font-semibold"><span className="text-gray-500">Year 1 After-Tax CF:</span> ${analysis.cash.yearly[0].afterTaxCashFlow.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p className="text-gray-500 text-xs mt-1">× {analysis.inputs.horizonYears} years average = ${ops.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+            </>
+          ) : (
+            <>
+              <p><span className="text-gray-500">Year 1 NOI:</span> ${(analysis.financed.yearly[0] as any).noi.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p><span className="text-gray-500">Less: Debt Service (Year 1):</span> -${(analysis.financed.yearly[0] as any).debtService.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p><span className="text-gray-500">Pre-Tax CF (Year 1):</span> ${((analysis.financed.yearly[0] as any).noi - (analysis.financed.yearly[0] as any).debtService).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p><span className="text-gray-500">Less: Taxes (Year 1):</span> -${(analysis.financed.yearly[0] as any).taxes.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p><span className="text-gray-500">Plus: Depreciation Tax Shield:</span> +${(analysis.financed.yearly[0] as any).taxShieldDep.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p className="font-semibold"><span className="text-gray-500">Year 1 After-Tax CF:</span> ${(analysis.financed.yearly[0] as any).afterTaxCashFlow.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+              <p className="text-gray-500 text-xs mt-1">× {analysis.inputs.horizonYears} years average = ${ops.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+            </>
+          )}
         </div>
       </div>
       <div className="space-y-1 border-l-4 border-purple-200 pl-3 bg-purple-50 py-2 px-2 rounded text-xs">
@@ -114,7 +140,11 @@ const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; 
       </div>
       <div className="space-y-1 border-l-4 border-amber-200 pl-3 bg-amber-50 py-2 px-2 rounded text-xs font-semibold">
         <p>💰 Total Wealth: ${total.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
-        <p className="font-normal text-gray-600">Operations cash + sale proceeds = your total profit</p>
+        <p className="font-normal text-gray-600 mb-2">Operations cash + sale proceeds = your total profit</p>
+        <div className="ml-2 space-y-0.5 text-gray-700 border-t border-amber-200 pt-2 mt-2 font-normal">
+          <p><span className="text-gray-500">Includes Depreciation Tax Shield:</span> ${(isCash ? analysis.cash.yearly.reduce((a, b) => a + b.taxShieldDep, 0) : (analysis.financed.yearly as any[]).reduce((a, b) => a + b.taxShieldDep, 0)).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p className="text-gray-500 text-xs">Tax savings from 27.5-year depreciation deduction</p>
+        </div>
       </div>
     </div>
   );
