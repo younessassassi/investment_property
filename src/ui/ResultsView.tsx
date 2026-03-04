@@ -85,13 +85,28 @@ const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; 
           </div>
         </div>
       )}
+      
+      <div className="space-y-1 border-l-4 border-orange-300 pl-3 bg-orange-50 py-2 px-2 rounded text-xs mb-3">
+        <p className="font-medium mb-1">📈 Year 1 Income vs Expenses</p>
+        <div className="ml-2 space-y-0.5 text-gray-700">
+          <p>Annual Rent: ${analysis.cash.yearly[0].rent.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p>Annual Expenses: ${analysis.cash.yearly[0].expenses.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p className="border-t border-orange-200 mt-1 pt-1 font-semibold text-orange-900">Net Operating Income: ${analysis.cash.yearly[0].noi.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+        </div>
+      </div>
       <div className="space-y-1 border-l-4 border-blue-200 pl-3 bg-blue-50 py-2 px-2 rounded text-xs">
         <p><span className="font-medium">IRR:</span> {irr !== null ? (irr*100).toFixed(2)+ '%' : 'n/a'}</p>
         <p className="text-gray-600">Annual return on your money invested</p>
       </div>
       <div className="space-y-1 border-l-4 border-green-200 pl-3 bg-green-50 py-2 px-2 rounded text-xs">
-        <p><span className="font-medium">Operations Cash Flow:</span> ${ops.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
-        <p className="text-gray-600">Total cash from rent after all expenses & taxes over {title.includes('Cash') ? 'buy & hold' : 'financing'}</p>
+        <p><span className="font-medium">💰 Operations Cash Flow:</span> ${ops.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+        <p className="text-gray-600 mb-2">Total cash from rent after all expenses & taxes over {analysis.inputs.horizonYears} years</p>
+        <div className="ml-2 space-y-0.5 text-gray-700 border-t border-green-200 pt-2 mt-2">
+          <p><span className="text-gray-500">Year 1 NOI:</span> ${analysis.cash.yearly[0].noi.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p><span className="text-gray-500">Less: Taxes (Year 1):</span> -${analysis.cash.yearly[0].taxes.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p className="font-semibold"><span className="text-gray-500">Year 1 After-Tax CF:</span> ${analysis.cash.yearly[0].afterTaxCashFlow.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+          <p className="text-gray-500 text-xs mt-1">× {analysis.inputs.horizonYears} years average = ${ops.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+        </div>
       </div>
       <div className="space-y-1 border-l-4 border-purple-200 pl-3 bg-purple-50 py-2 px-2 rounded text-xs">
         <p><span className="font-medium">Sale Proceeds (Net):</span> ${sale.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
