@@ -1,4 +1,5 @@
 export interface InputState {
+  address?: string; // property address for fetching listing data
   purchasePrice: number;
   loanPercent: number; // 0-1
   interestRate: number; // annual nominal, 0-1
@@ -19,6 +20,7 @@ export interface InputState {
 }
 
 export const initialInputs: InputState = {
+  address: '',
   purchasePrice: 400000,
   loanPercent: 0.7,
   interestRate: 0.065,
