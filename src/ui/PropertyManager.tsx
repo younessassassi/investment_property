@@ -7,12 +7,14 @@ interface PropertyManagerProps {
   userId: string;
   currentInputs: InputState;
   onLoadProperty: (propertyId: string, inputs: InputState) => void;
+  onCreateNewProperty: () => void;
 }
 
 export const PropertyManager: React.FC<PropertyManagerProps> = ({ 
   userId, 
   currentInputs, 
-  onLoadProperty 
+  onLoadProperty,
+  onCreateNewProperty,
 }) => {
   const [properties, setProperties] = useState<SavedProperty[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -30,15 +32,27 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
     setProperties(userProperties);
   };
 
-  const handleSave = () => {
-    if (!propertyName.trim()) {
-      setError('Property name is required');
-      return;
+  const getSuggestedName = () => {
+    const address = (currentInputs.address || '').trim();
+    if (address) {
+      return address;
     }
+    return `Property ${properties.length + 1}`;
+  };
+
+  const handleCreateNew = () => {
+    onCreateNewProperty();
+    setPropertyName(getSuggestedName());
+    setError('');
+    setSaveDialogOpen(true);
+  };
+
+  const handleSave = () => {
+    const finalName = propertyName.trim() || getSuggestedName();
 
     try {
       PropertyService.saveProperty({
-        name: propertyName,
+        name: finalName,
         inputs: currentInputs,
         userId
       });
@@ -93,12 +107,24 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
     <div className="bg-white p-4 rounded shadow">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Saved Properties</h3>
-        <button
-          onClick={() => setSaveDialogOpen(true)}
-          className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-        >
-          Save Current
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCreateNew}
+            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+          >
+            New Property
+          </button>
+          <button
+            onClick={() => {
+              setPropertyName(getSuggestedName());
+              setError('');
+              setSaveDialogOpen(true);
+            }}
+            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+          >
+            Save Current
+          </button>
+        </div>
       </div>
 
       {saveDialogOpen && (
@@ -110,6 +136,7 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
             onChange={(e) => setPropertyName(e.target.value)}
             className="w-full px-2 py-1 border rounded mb-2"
           />
+          <div className="text-xs text-gray-500 mb-2">Tip: leave blank to auto-name it.</div>
           {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
           <div className="flex gap-2">
             <button
@@ -136,7 +163,7 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
         {properties.length === 0 ? (
           <p className="text-gray-500 text-sm">No saved properties yet</p>
         ) : (
-          properties.map((property) => (
+          properties.map((property, index) => (
             <div key={property.id} className="p-2 border rounded">
               {editingId === property.id ? (
                 <div className="space-y-2">
@@ -166,9 +193,16 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="font-medium">{property.name}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <span>{property.name}</span>
+                      {index === 0 && (
+                        <span className="text-[10px] uppercase tracking-wide bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                          Most Recent
+                        </span>
+                      )}
+                    </div>
                     <div className="text-sm text-gray-500">
-                      Saved {new Date(property.createdAt).toLocaleDateString()}
+                      Updated {new Date(property.updatedAt).toLocaleDateString()} {new Date(property.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                   <div className="flex gap-1">

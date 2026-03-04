@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { initialInputs, InputState } from '../valuation/inputs';
 import { computeAnalysis } from '../valuation/engine';
 import { ResultsView } from './ResultsView';
@@ -14,10 +14,9 @@ import { PropertyService } from '../auth/service';
 export const App: React.FC = () => {
   const { isAuthenticated, user, signOut } = useAuth();
   const [inputs, setInputs] = useState<InputState>(initialInputs);
-  console.log('🎯 App state interestRate:', inputs.interestRate);
+  const [hasAutoLoadedLatest, setHasAutoLoadedLatest] = useState(false);
   
   const handleInputChange = (newInputs: InputState) => {
-    console.log('📝 InputsForm onChange fired - interestRate:', newInputs.interestRate);
     setInputs(newInputs);
   };
 
@@ -27,46 +26,39 @@ export const App: React.FC = () => {
   const optimization = optimizeFinancing(inputs);
   const recommendation = getOptimizationRecommendation(optimization);
 
+  useEffect(() => {
+    if (!user?.id || hasAutoLoadedLatest) {
+      return;
+    }
+
+    const userProperties = PropertyService.getProperties(user.id);
+    if (userProperties.length > 0) {
+      const latestProperty = userProperties[0];
+      const mergedInputs = { ...initialInputs, ...latestProperty.inputs };
+      setCurrentPropertyId(latestProperty.id);
+      setInputs(mergedInputs);
+    }
+
+    setHasAutoLoadedLatest(true);
+  }, [user?.id, hasAutoLoadedLatest]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setHasAutoLoadedLatest(false);
+    }
+  }, [user?.id]);
+
   const handleLoadProperty = (propertyId: string, propertyInputs: InputState) => {
     setCurrentPropertyId(propertyId);
-    console.log('📂 Loading property with inputs:', propertyInputs);
-    console.log('📊 Loaded field count:', Object.keys(propertyInputs).length);
-    console.log('📋 Loaded fields:', Object.keys(propertyInputs));
-    
+
     // Merge with defaults to ensure all required fields are present (for backward compatibility)
     const mergedInputs = { ...initialInputs, ...propertyInputs };
-    console.log('✅ After merge field count:', Object.keys(mergedInputs).length);
-    console.log('✅ After merge fields:', Object.keys(mergedInputs));
-    
+
     setInputs(mergedInputs);
   };
 
   const handleSaveCurrentProperty = () => {
     if (currentPropertyId) {
-      console.log('💾 Saving property with inputs:', inputs);
-      console.log('📊 Input field count:', Object.keys(inputs).length);
-      console.log('📋 All fields:', Object.keys(inputs));
-      console.log('🔍 Individual values:', {
-        address: inputs.address,
-        purchasePrice: inputs.purchasePrice,
-        closingCosts: inputs.closingCosts,
-        loanPercent: inputs.loanPercent,
-        interestRate: inputs.interestRate,
-        loanTermYears: inputs.loanTermYears,
-        grossAnnualRent: inputs.grossAnnualRent,
-        rentGrowth: inputs.rentGrowth,
-        taxes: inputs.taxes,
-        insurance: inputs.insurance,
-        hoa: inputs.hoa,
-        otherExpenses: inputs.otherExpenses,
-        expenseGrowth: inputs.expenseGrowth,
-        landPercent: inputs.landPercent,
-        horizonYears: inputs.horizonYears,
-        appreciation: inputs.appreciation,
-        sellingCostsPercent: inputs.sellingCostsPercent,
-        taxRate: inputs.taxRate,
-        capGainsRate: inputs.capGainsRate,
-      });
       try {
         PropertyService.updateProperty(currentPropertyId, { inputs });
         setSaveSuccess(true);
@@ -75,6 +67,12 @@ export const App: React.FC = () => {
         alert('Error saving property: ' + err.message);
       }
     }
+  };
+
+  const handleCreateNewProperty = () => {
+    setCurrentPropertyId(null);
+    setSaveSuccess(false);
+    setInputs(initialInputs);
   };
 
   if (!isAuthenticated) {
@@ -102,6 +100,7 @@ export const App: React.FC = () => {
             userId={user!.id}
             currentInputs={inputs}
             onLoadProperty={(propertyId, inputs) => handleLoadProperty(propertyId, inputs)}
+            onCreateNewProperty={handleCreateNewProperty}
           />
         </div>
         

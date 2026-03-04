@@ -67,7 +67,9 @@ export class PropertyService {
   static getProperties(userId: string): SavedProperty[] {
     const properties = localStorage.getItem(PROPERTIES_KEY);
     const allProperties: SavedProperty[] = properties ? JSON.parse(properties) : [];
-    return allProperties.filter(p => p.userId === userId);
+    return allProperties
+      .filter(p => p.userId === userId)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }
 
   static saveProperty(property: Omit<SavedProperty, 'id' | 'createdAt' | 'updatedAt'>): SavedProperty {
