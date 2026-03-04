@@ -48,7 +48,7 @@ export const InputsForm: React.FC<{ value: InputState; onChange(v: InputState): 
         type="number"
         step={step}
         value={value[k] as number}
-        onChange={(e) => update(k, parseFloat(e.target.value))}
+        onChange={(e) => update(k, parseFloat(e.target.value) || 0)}
         className="border rounded px-2 py-1"
       />
     </label>
