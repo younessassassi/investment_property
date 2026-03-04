@@ -1,51 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { InputState } from '../valuation/inputs';
-import { fetchListing, Listing } from '../util/listingClient';
-import { PropertyPreview } from './PropertyPreview';
 
 export const InputsForm: React.FC<{ value: InputState; onChange(v: InputState): void; }> = ({ value, onChange }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [listing, setListing] = useState<Listing | null>(null);
-
   function update<K extends keyof InputState>(k: K, v: InputState[K]) {
-    if (k === 'interestRate') {
-      console.log('🔄 Updating interestRate from', value.interestRate, 'to', v);
-    }
     onChange({ ...value, [k]: typeof v === 'number' ? Number(v) : v } as InputState);
   }
-
-  const handleFetchListing = async () => {
-    if (!value.address?.trim()) {
-      setError('Please enter an address');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    setListing(null);
-
-    try {
-      const fetchedListing = await fetchListing(value.address);
-      setListing(fetchedListing);
-      const updated = {
-        ...value,
-        address: value.address, // Explicitly preserve address
-        purchasePrice: fetchedListing.listPrice,
-        grossAnnualRent: fetchedListing.grossAnnualRent || value.grossAnnualRent,
-        taxes: fetchedListing.taxes || value.taxes,
-        insurance: fetchedListing.insurance || value.insurance,
-        hoa: fetchedListing.hoa ?? value.hoa,
-      };
-      console.log('🔍 Listing fetched - Updated fields:', Object.keys(updated), 'Count:', Object.keys(updated).length);
-      onChange(updated);
-    } catch (err: any) {
-      setError(`Error fetching listing: ${err.message}`);
-      setListing(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const numInput = (label: string, k: keyof InputState, step = 0.01, min = 0) => (
     <label className="flex flex-col gap-1 text-sm" key={k as string}>
@@ -81,28 +40,17 @@ export const InputsForm: React.FC<{ value: InputState; onChange(v: InputState): 
   return (
     <div className="space-y-4">
       <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded text-sm text-blue-800">
-        <strong>📝 How to use:</strong> Enter an address to auto-populate estimates, then manually adjust any values. Real MLS data requires a paid subscription.
+        <strong>How to use:</strong> Enter your property details and adjust any values to model your scenario.
       </div>
       
       <div className="bg-white p-4 rounded shadow space-y-3">
-        <div className="font-semibold text-sm">📍 Property Address (Optional)</div>
+        <div className="font-semibold text-sm">Property Address (Optional)</div>
         <div className="flex gap-2">
           <div className="flex-1">
             {textInput('Address', 'address')}
           </div>
-          <button
-            onClick={handleFetchListing}
-            disabled={loading}
-            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:bg-gray-400 self-end h-fit font-medium transition-colors"
-          >
-            {loading ? '⏳ Fetching...' : '🔍 Fetch Listing'}
-          </button>
         </div>
-        {error && <div className="text-red-600 text-xs bg-red-50 p-2 rounded">{error}</div>}
       </div>
-
-      {/* Property Preview */}
-      <PropertyPreview listing={listing} loading={loading} error={error} />
 
       <div className="grid md:grid-cols-4 gap-4 bg-white p-4 rounded shadow">
         {numInput('Purchase Price', 'purchasePrice', 1000)}

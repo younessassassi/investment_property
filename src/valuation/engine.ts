@@ -53,15 +53,22 @@ function irr(cashFlows: number[]): number | null {
 }
 
 export function computeAnalysis(rawInputs: InputState): AnalysisResult {
-  // Sanitize: treat empty/NaN values as 0 (safe defaults prevent crashes)
-  const n = (v: any, fallback = 0) => { const x = Number(v); return isFinite(x) ? x : fallback; };
+  // Sanitize: treat empty/null/NaN as fallback to prevent runtime math/render errors.
+  const n = (v: any, fallback = 0) => {
+    if (v === '' || v === null || v === undefined) return fallback;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : fallback;
+  };
+
+  const min1 = (v: any, fallback = 1) => Math.max(1, n(v, fallback));
+
   const inputs: InputState = {
     ...rawInputs,
     purchasePrice:      n(rawInputs.purchasePrice),
     closingCosts:       n(rawInputs.closingCosts),
     loanPercent:        n(rawInputs.loanPercent),
     interestRate:       n(rawInputs.interestRate),
-    loanTermYears:      n(rawInputs.loanTermYears, 1),  // avoid /0
+    loanTermYears:      min1(rawInputs.loanTermYears, 30),
     grossAnnualRent:    n(rawInputs.grossAnnualRent),
     rentGrowth:         n(rawInputs.rentGrowth),
     taxes:              n(rawInputs.taxes),
@@ -70,7 +77,7 @@ export function computeAnalysis(rawInputs: InputState): AnalysisResult {
     otherExpenses:      n(rawInputs.otherExpenses),
     expenseGrowth:      n(rawInputs.expenseGrowth),
     landPercent:        n(rawInputs.landPercent),
-    horizonYears:       n(rawInputs.horizonYears, 1),   // avoid empty loops
+    horizonYears:       min1(rawInputs.horizonYears, 15),
     appreciation:       n(rawInputs.appreciation),
     sellingCostsPercent:n(rawInputs.sellingCostsPercent),
     taxRate:            n(rawInputs.taxRate),
