@@ -58,6 +58,7 @@ export const InputsForm: React.FC<{ value: InputState; onChange(v: InputState): 
         {numInput('Loan %', 'loanPercent', 0.01)}
         {numInput('Interest Rate', 'interestRate', 0.001)}
         {numInput('Loan Term (yrs)', 'loanTermYears', 1)}
+        {numInput('Loan Points', 'loanPoints', 0.001)}
         {numInput('Gross Annual Rent', 'grossAnnualRent', 100)}
         {numInput('Rent Growth %', 'rentGrowth', 0.001)}
         {numInput('Taxes (annual)', 'taxes', 100)}

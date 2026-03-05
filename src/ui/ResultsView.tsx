@@ -53,11 +53,12 @@ export const ResultsView: React.FC<{ analysis: AnalysisResult }> = ({ analysis }
 const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; sale: number; ops: number; analysis: AnalysisResult; }> = ({ title, irr, total, sale, ops, analysis }) => {
   const totalRev = ops + sale;
   const isCash = title.includes('Cash');
-  const { purchasePrice, loanPercent, closingCosts } = analysis.inputs;
+  const { purchasePrice, loanPercent, closingCosts, loanPoints } = analysis.inputs;
   const downPayment = purchasePrice - (purchasePrice * loanPercent);
   const loanAmount = purchasePrice * loanPercent;
+  const pointsCost = loanAmount * loanPoints;
   const cashScenarioTotal = purchasePrice + closingCosts;
-  const financedScenarioTotal = downPayment + closingCosts;
+  const financedScenarioTotal = downPayment + closingCosts + pointsCost;
   
   return (
     <div className="bg-white p-4 rounded shadow text-sm space-y-2">
@@ -80,6 +81,7 @@ const SummaryCard: React.FC<{ title: string; irr: number | null; total: number; 
           <div className="ml-2 space-y-0.5 text-gray-700">
             <p>Down Payment: ${downPayment.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
             <p>Closing Costs: ${closingCosts.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+            {pointsCost > 0 && <p>Loan Points: ${pointsCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>}
             <p className="border-t border-gray-300 mt-1 pt-1 font-semibold">Total Cash: ${financedScenarioTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
             <p className="text-gray-600 mt-2">Loan Amount: ${loanAmount.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
           </div>

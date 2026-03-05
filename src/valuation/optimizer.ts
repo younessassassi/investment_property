@@ -5,16 +5,21 @@ export interface OptimizationResult {
   bestLoanPercent: number;
   bestIRR: number;
   bestTotalWealth: number;
+  bestNetProfit: number;
   currentIRR: number;
   currentTotalWealth: number;
+  currentNetProfit: number;
   improvement: {
     irrIncrease: number; // percentage points
     wealthIncrease: number; // dollar amount
+    netProfitIncrease: number; // dollar amount
   };
   allScenarios: Array<{
     loanPercent: number;
     irr: number;
     totalWealth: number;
+    cashOutlay: number;
+    netProfit: number;
     analysis: AnalysisResult;
   }>;
 }
@@ -24,31 +29,38 @@ export function optimizeFinancing(inputs: InputState): OptimizationResult {
   // Restrict to maximum 80% financing (minimum 20% down payment)
   const loanPercentOptions = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
   
-  // Test different loan percentages, using per-tier interest rate if available
+  // Test different loan percentages, using per-tier interest rate and points if available
   const rateMap = inputs.rateByLoanPercent || {};
+  const pointsMap = inputs.pointsByLoanPercent || {};
   for (const loanPercent of loanPercentOptions) {
     const tierRate = rateMap[String(loanPercent)];
     const interestRate = tierRate !== undefined ? tierRate : inputs.interestRate;
-    const testInputs = { ...inputs, loanPercent, interestRate };
+    const tierPoints = pointsMap[String(loanPercent)];
+    const loanPoints = tierPoints !== undefined ? tierPoints : inputs.loanPoints;
+    const testInputs = { ...inputs, loanPercent, interestRate, loanPoints };
     const analysis = computeAnalysis(testInputs);
     
     // Use financed scenario if loan > 0, otherwise cash scenario
     const relevantScenario = loanPercent > 0 ? analysis.financed : analysis.cash;
     const irr = relevantScenario.irr || 0;
     const totalWealth = relevantScenario.totalWealth;
+    const cashOutlay = relevantScenario.cashOutlay;
+    const netProfit = relevantScenario.netProfit;
     
     scenarios.push({
       loanPercent,
       irr,
       totalWealth,
+      cashOutlay,
+      netProfit,
       analysis
     });
   }
   
-  // Find best scenario by IRR (primary) and total wealth (secondary)
+  // Find best scenario by IRR (primary) and net profit (secondary)
   const bestScenario = scenarios.reduce((best, current) => {
     if (current.irr > best.irr) return current;
-    if (current.irr === best.irr && current.totalWealth > best.totalWealth) return current;
+    if (current.irr === best.irr && current.netProfit > best.netProfit) return current;
     return best;
   });
   
@@ -57,16 +69,20 @@ export function optimizeFinancing(inputs: InputState): OptimizationResult {
   const currentScenario = inputs.loanPercent > 0 ? currentAnalysis.financed : currentAnalysis.cash;
   const currentIRR = currentScenario.irr || 0;
   const currentTotalWealth = currentScenario.totalWealth;
+  const currentNetProfit = currentScenario.netProfit;
   
   return {
     bestLoanPercent: bestScenario.loanPercent,
     bestIRR: bestScenario.irr,
     bestTotalWealth: bestScenario.totalWealth,
+    bestNetProfit: bestScenario.netProfit,
     currentIRR,
     currentTotalWealth,
+    currentNetProfit,
     improvement: {
       irrIncrease: bestScenario.irr - currentIRR,
-      wealthIncrease: bestScenario.totalWealth - currentTotalWealth
+      wealthIncrease: bestScenario.totalWealth - currentTotalWealth,
+      netProfitIncrease: bestScenario.netProfit - currentNetProfit,
     },
     allScenarios: scenarios
   };

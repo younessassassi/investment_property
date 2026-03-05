@@ -25,6 +25,8 @@ export interface ScenarioResults {
   cashFlows: number[]; // includes initial investment negative outflow at t0, annual after-tax CF, final sale proceeds net taxes
   irr: number | null;
   totalWealth: number; // sum of CF after t0 (operations + sale net)
+  cashOutlay: number; // total upfront cash invested (purchase/down payment + closing + points)
+  netProfit: number; // totalWealth - cashOutlay
   saleProceedsNet: number; // net after taxes and payoff (if any)
   operationsCashFlow: number; // sum of annual after-tax cash flows (excluding sale)
   totalRevenue: number; // operationsCashFlow + saleProceedsNet
@@ -69,6 +71,7 @@ export function computeAnalysis(rawInputs: InputState): AnalysisResult {
     loanPercent:        n(rawInputs.loanPercent),
     interestRate:       n(rawInputs.interestRate),
     loanTermYears:      min1(rawInputs.loanTermYears, 30),
+    loanPoints:         n(rawInputs.loanPoints),
     grossAnnualRent:    n(rawInputs.grossAnnualRent),
     rentGrowth:         n(rawInputs.rentGrowth),
     taxes:              n(rawInputs.taxes),
@@ -120,6 +123,7 @@ export function computeAnalysis(rawInputs: InputState): AnalysisResult {
   const saleNet = saleGross - recaptureTax - capGainsTax;
 
   const initialInvestment = -(inputs.purchasePrice + inputs.closingCosts);
+  const cashOutlayCash = inputs.purchasePrice + inputs.closingCosts;
   const cashCF: number[] = [initialInvestment, ...cashYearly.map(r => r.afterTaxCashFlow), saleNet];
   const cashIrr = irr(cashCF);
   const operationsCashFlowCash = cashYearly.reduce((a,b)=>a+b.afterTaxCashFlow,0);
@@ -127,7 +131,9 @@ export function computeAnalysis(rawInputs: InputState): AnalysisResult {
 
   // FINANCED SCENARIO
   const loanAmount = inputs.purchasePrice * inputs.loanPercent;
-  const downPayment = inputs.purchasePrice - loanAmount + inputs.closingCosts;
+  const pointsCost = loanAmount * inputs.loanPoints;
+  const downPayment = inputs.purchasePrice - loanAmount + inputs.closingCosts + pointsCost;
+  const annualPointsAmortization = inputs.loanTermYears > 0 ? pointsCost / inputs.loanTermYears : 0;
   const monthlyRate = inputs.interestRate / 12;
   const nPayments = inputs.loanTermYears * 12;
   const monthlyPayment = monthlyRate === 0
@@ -149,9 +155,9 @@ export function computeAnalysis(rawInputs: InputState): AnalysisResult {
     }
     const debtService = principalPaid + interestPaid;
     const noiPreDebt = rent - expenses;
-  const taxableIncomeNoDep = (noiPreDebt - interestPaid);
+  const taxableIncomeNoDep = (noiPreDebt - interestPaid - annualPointsAmortization);
   const taxesNoDep = Math.max(taxableIncomeNoDep, 0) * inputs.taxRate;
-  const taxableIncome = taxableIncomeNoDep - annualDep; // interest deductible, principal not
+  const taxableIncome = taxableIncomeNoDep - annualDep; // interest + points amortization deductible, principal not
   const taxes = Math.max(taxableIncome, 0) * inputs.taxRate;
   const afterTaxCFBeforeDep = (noiPreDebt - debtService) - taxesNoDep;
   const afterTaxCashFlow = (noiPreDebt - debtService) - taxes;
@@ -177,7 +183,7 @@ export function computeAnalysis(rawInputs: InputState): AnalysisResult {
 
   return {
     inputs,
-  cash: { yearly: cashYearly, cashFlows: cashCF, irr: cashIrr, totalWealth: cashTotalWealth, saleProceedsNet: saleNet, operationsCashFlow: operationsCashFlowCash, totalRevenue: cashTotalWealth },
-  financed: { yearly: finYearly, cashFlows: financedCF, irr: financedIrr, totalWealth: financedTotalWealth, saleProceedsNet: saleNetFin, operationsCashFlow: operationsCashFlowFin, totalRevenue: financedTotalWealth },
+  cash: { yearly: cashYearly, cashFlows: cashCF, irr: cashIrr, totalWealth: cashTotalWealth, cashOutlay: cashOutlayCash, netProfit: cashTotalWealth - cashOutlayCash, saleProceedsNet: saleNet, operationsCashFlow: operationsCashFlowCash, totalRevenue: cashTotalWealth },
+  financed: { yearly: finYearly, cashFlows: financedCF, irr: financedIrr, totalWealth: financedTotalWealth, cashOutlay: downPayment, netProfit: financedTotalWealth - downPayment, saleProceedsNet: saleNetFin, operationsCashFlow: operationsCashFlowFin, totalRevenue: financedTotalWealth },
   };
 }

@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { OptimizationResult } from '../valuation/optimizer';
-import { RateByLoanPercent } from '../valuation/inputs';
+import { RateByLoanPercent, PointsByLoanPercent } from '../valuation/inputs';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface OptimizationPanelProps {
   optimization: OptimizationResult;
   recommendation: string;
   rateByLoanPercent: RateByLoanPercent;
-  onApplyOptimal: (loanPercent: number, interestRate: number) => void;
+  pointsByLoanPercent: PointsByLoanPercent;
+  onApplyOptimal: (loanPercent: number, interestRate: number, loanPoints: number) => void;
   onRateMapChange: (rateMap: RateByLoanPercent) => void;
+  onPointsMapChange: (pointsMap: PointsByLoanPercent) => void;
 }
 
 export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
   optimization,
   recommendation,
   rateByLoanPercent,
+  pointsByLoanPercent,
   onApplyOptimal,
   onRateMapChange,
+  onPointsMapChange,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showRateEditor, setShowRateEditor] = useState(false);
@@ -29,16 +33,29 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
     onRateMapChange({ ...rateByLoanPercent, [String(loanPct)]: rate as any });
   };
 
+  const handlePointsChange = (loanPct: number, newPoints: string) => {
+    const parsed = parseFloat(newPoints);
+    const pts = isNaN(parsed) ? '' : parsed;
+    onPointsMapChange({ ...pointsByLoanPercent, [String(loanPct)]: pts as any });
+  };
+
   const getBestRate = () => {
     const bestLp = optimization.bestLoanPercent;
     const tierRate = rateByLoanPercent[String(bestLp)];
     return tierRate !== undefined ? tierRate : 0;
   };
+
+  const getBestPoints = () => {
+    const bestLp = optimization.bestLoanPercent;
+    const tierPoints = pointsByLoanPercent[String(bestLp)];
+    return tierPoints !== undefined ? tierPoints : 0;
+  };
   
   const chartData = optimization.allScenarios.map(s => ({
     loanPercent: s.loanPercent * 100,
     irr: s.irr * 100,
-    totalWealth: s.totalWealth
+    totalWealth: s.totalWealth,
+    netProfit: s.netProfit,
   }));
 
   const formatCurrencyAxis = (value: number): string => {
@@ -63,7 +80,7 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
             onClick={() => setShowRateEditor(!showRateEditor)}
             className="text-blue-600 hover:text-blue-800 text-sm underline"
           >
-            {showRateEditor ? 'Hide Rates' : 'Edit Rates by Down Payment'}
+            {showRateEditor ? 'Hide Rates & Points' : 'Edit Rates & Points by Down Payment'}
           </button>
           <button
             onClick={() => setShowDetails(!showDetails)}
@@ -76,29 +93,60 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
 
       {showRateEditor && (
         <div className="mb-4 p-3 bg-white rounded border">
-          <h4 className="font-medium text-sm text-blue-900 mb-2">Interest Rate by Down Payment</h4>
-          <p className="text-xs text-gray-500 mb-3">Set a different mortgage rate for each financing level. The optimizer will use these rates when comparing scenarios.</p>
-          <div className="grid grid-cols-3 gap-2">
-            {loanPercentOptions.map(lp => {
-              const downPct = ((1 - lp) * 100).toFixed(0);
-              const currentRate = rateByLoanPercent[String(lp)];
-              return (
-                <label key={lp} className="flex items-center gap-2 text-xs">
-                  <span className="w-20 text-gray-700">{downPct}% down:</span>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    value={currentRate ?? ''}
-                    onChange={(e) => handleRateChange(lp, e.target.value)}
-                    className="border rounded px-1.5 py-0.5 w-20 text-xs"
-                    placeholder={lp === 0 ? 'N/A' : 'rate'}
-                    disabled={lp === 0}
-                  />
-                  {lp > 0 && currentRate !== undefined && <span className="text-gray-400">{(Number(currentRate) * 100).toFixed(2)}%</span>}
-                </label>
-              );
-            })}
+          <h4 className="font-medium text-sm text-blue-900 mb-2">Interest Rate & Loan Points by Down Payment</h4>
+          <p className="text-xs text-gray-500 mb-3">Set a different mortgage rate and loan points (fees) for each financing level. The optimizer will use these when comparing scenarios.</p>
+          <div className="overflow-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-gray-600">
+                  <th className="p-1 w-20">Down Pmt</th>
+                  <th className="p-1">Rate</th>
+                  <th className="p-1">Points</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loanPercentOptions.map(lp => {
+                  const downPct = ((1 - lp) * 100).toFixed(0);
+                  const currentRate = rateByLoanPercent[String(lp)];
+                  const currentPoints = pointsByLoanPercent[String(lp)];
+                  return (
+                    <tr key={lp}>
+                      <td className="p-1 text-gray-700 font-medium">{downPct}% down</td>
+                      <td className="p-1">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            value={currentRate ?? ''}
+                            onChange={(e) => handleRateChange(lp, e.target.value)}
+                            className="border rounded px-1.5 py-0.5 w-20 text-xs"
+                            placeholder={lp === 0 ? 'N/A' : 'rate'}
+                            disabled={lp === 0}
+                          />
+                          {lp > 0 && currentRate !== undefined && <span className="text-gray-400">{(Number(currentRate) * 100).toFixed(2)}%</span>}
+                        </div>
+                      </td>
+                      <td className="p-1">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            value={currentPoints ?? ''}
+                            onChange={(e) => handlePointsChange(lp, e.target.value)}
+                            className="border rounded px-1.5 py-0.5 w-20 text-xs"
+                            placeholder={lp === 0 ? 'N/A' : 'points'}
+                            disabled={lp === 0}
+                          />
+                          {lp > 0 && currentPoints !== undefined && currentPoints > 0 && <span className="text-gray-400">{(Number(currentPoints) * 100).toFixed(2)}%</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -109,7 +157,7 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
         {hasImprovement && (
           <div className="flex gap-2 items-center">
             <button
-              onClick={() => onApplyOptimal(optimization.bestLoanPercent, getBestRate())}
+              onClick={() => onApplyOptimal(optimization.bestLoanPercent, getBestRate(), getBestPoints())}
               className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
             >
               Apply Optimal ({(optimization.bestLoanPercent * 100).toFixed(0)}% financing, ${((1 - optimization.bestLoanPercent) * optimization.allScenarios[0].analysis.inputs.purchasePrice).toLocaleString(undefined, { maximumFractionDigits: 0 })} down)
@@ -144,8 +192,8 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
             </div>
             
             <div>
-              <h4 className="font-medium text-blue-900 mb-1">💰 Total Wealth by Loan-to-Value Ratio</h4>
-              <p className="text-xs text-gray-600 mb-2">Total money you'll have after 15 years at different debt levels. Shows if borrowing more saves you or costs you in the long run.</p>
+              <h4 className="font-medium text-blue-900 mb-1">💰 Net Profit by Loan-to-Value Ratio</h4>
+              <p className="text-xs text-gray-600 mb-2">Total profit (operations + sale) minus cash invested upfront (incl. points). Shows true return accounting for all upfront costs.</p>
               <div className="h-40 bg-white p-2 rounded border">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
@@ -153,9 +201,9 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                     <YAxis tickFormatter={formatCurrencyAxis} />
                     <Tooltip formatter={(value) => [
                       `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-                      'Total Wealth'
+                      'Net Profit'
                     ]} />
-                    <Line type="monotone" dataKey="totalWealth" stroke="#16a34a" strokeWidth={2} />
+                    <Line type="monotone" dataKey="netProfit" stroke="#16a34a" strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -170,22 +218,28 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                   <tr>
                     <th className="p-2 text-left">Loan %</th>
                     <th className="p-2 text-right">Rate</th>
+                    <th className="p-2 text-right">Points</th>
                     <th className="p-2 text-right">IRR</th>
-                    <th className="p-2 text-right">Total Wealth</th>
-                    <th className="p-2 text-right">Down Payment</th>
+                    <th className="p-2 text-right">Cash Outlay</th>
+                    <th className="p-2 text-right">Total Returns</th>
+                    <th className="p-2 text-right">Net Profit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {optimization.allScenarios.map((scenario, i) => {
                     const tierRate = rateByLoanPercent[String(scenario.loanPercent)];
                     const displayRate = scenario.loanPercent === 0 ? 'N/A' : (tierRate !== undefined ? `${(Number(tierRate) * 100).toFixed(2)}%` : `${(scenario.analysis.inputs.interestRate * 100).toFixed(2)}%`);
+                    const tierPoints = pointsByLoanPercent[String(scenario.loanPercent)];
+                    const displayPoints = scenario.loanPercent === 0 ? 'N/A' : (tierPoints !== undefined && Number(tierPoints) > 0 ? `${(Number(tierPoints) * 100).toFixed(2)}%` : '0');
                     return (
                     <tr key={i} className={`${scenario.loanPercent === optimization.bestLoanPercent ? 'bg-green-50 font-medium' : ''} ${i % 2 ? 'bg-gray-25' : ''}`}>
                       <td className="p-2">{(scenario.loanPercent * 100).toFixed(0)}%</td>
                       <td className="p-2 text-right">{displayRate}</td>
+                      <td className="p-2 text-right">{displayPoints}</td>
                       <td className="p-2 text-right">{(scenario.irr * 100).toFixed(2)}%</td>
+                      <td className="p-2 text-right">${scenario.cashOutlay.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                       <td className="p-2 text-right">${scenario.totalWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                      <td className="p-2 text-right">${((1 - scenario.loanPercent) * scenario.analysis.inputs.purchasePrice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                      <td className="p-2 text-right font-semibold">${scenario.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     </tr>
                     );
                   })}
