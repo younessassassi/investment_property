@@ -131,6 +131,10 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
         </div>
       </div>
 
+      {error && !saveDialogOpen && (
+        <div className="text-red-600 text-sm mb-3 p-2 bg-red-50 rounded">{error}</div>
+      )}
+
       {saveDialogOpen && (
         <div className="mb-4 p-3 border rounded bg-gray-50">
           <input
