@@ -22,7 +22,19 @@ export const App: React.FC = () => {
 
   const [currentPropertyId, setCurrentPropertyId] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const analysis = computeAnalysis(inputs);
+  // Resolve per-tier rate/points overrides for the current loan percent
+  const effectiveInputs = (() => {
+    const rateMap = inputs.rateByLoanPercent || {};
+    const pointsMap = inputs.pointsByLoanPercent || {};
+    const tierRate = rateMap[String(inputs.loanPercent)];
+    const tierPoints = pointsMap[String(inputs.loanPercent)];
+    return {
+      ...inputs,
+      interestRate: tierRate !== undefined ? tierRate : inputs.interestRate,
+      loanPoints: tierPoints !== undefined ? tierPoints : inputs.loanPoints,
+    };
+  })();
+  const analysis = computeAnalysis(effectiveInputs);
   const optimization = optimizeFinancing(inputs);
   const recommendation = getOptimizationRecommendation(optimization);
 
