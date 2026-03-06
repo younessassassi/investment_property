@@ -21,6 +21,7 @@ export const App: React.FC = () => {
   };
 
   const [currentPropertyId, setCurrentPropertyId] = useState<string | null>(null);
+  const [currentPropertyName, setCurrentPropertyName] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   // Resolve per-tier rate/points overrides for the current loan percent
   const effectiveInputs = (() => {
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
         const latestProperty = userProperties[0];
         const mergedInputs = { ...initialInputs, ...latestProperty.inputs };
         setCurrentPropertyId(latestProperty.id);
+        setCurrentPropertyName(latestProperty.name);
         setInputs(mergedInputs);
       }
       setHasAutoLoadedLatest(true);
@@ -60,8 +62,9 @@ export const App: React.FC = () => {
     }
   }, [user?.id]);
 
-  const handleLoadProperty = (propertyId: string, propertyInputs: InputState) => {
+  const handleLoadProperty = (propertyId: string, propertyInputs: InputState, propertyName: string) => {
     setCurrentPropertyId(propertyId);
+    setCurrentPropertyName(propertyName);
 
     // Merge with defaults to ensure all required fields are present (for backward compatibility)
     const mergedInputs = { ...initialInputs, ...propertyInputs };
@@ -83,6 +86,7 @@ export const App: React.FC = () => {
 
   const handleCreateNewProperty = () => {
     setCurrentPropertyId(null);
+    setCurrentPropertyName(null);
     setSaveSuccess(false);
     setInputs(initialInputs);
   };
@@ -119,12 +123,45 @@ export const App: React.FC = () => {
           <PropertyManager
             userId={user!.id}
             currentInputs={inputs}
-            onLoadProperty={(propertyId, inputs) => handleLoadProperty(propertyId, inputs)}
+            onLoadProperty={(propertyId, inputs, name) => handleLoadProperty(propertyId, inputs, name)}
             onCreateNewProperty={handleCreateNewProperty}
           />
         </div>
         
         <div className="lg:col-span-3 space-y-6">
+          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border rounded-lg shadow-sm px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {currentPropertyName || 'Untitled Property'}
+              </h2>
+              {!currentPropertyId && (
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Unsaved</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {currentPropertyId && (
+                <button
+                  onClick={handleSaveCurrentProperty}
+                  className={`text-sm px-4 py-1.5 rounded font-medium ${
+                    saveSuccess
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  } text-white`}
+                >
+                  {saveSuccess ? '\u2713 Saved' : 'Save Changes'}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const csv = buildCsv(analysis.cash.yearly as any, analysis.financed.yearly as any);
+                  downloadCsv('analysis.csv', csv);
+                }}
+                className="bg-blue-600 text-white text-sm px-3 py-1.5 rounded hover:bg-blue-700">
+                Export CSV
+              </button>
+            </div>
+          </div>
+
           <OptimizationPanel
             optimization={optimization}
             recommendation={recommendation}
@@ -137,28 +174,6 @@ export const App: React.FC = () => {
             onPointsMapChange={(pointsMap: PointsByLoanPercent) => setInputs({ ...inputs, pointsByLoanPercent: pointsMap })}
           />
           
-          <div className="flex gap-2 flex-wrap">
-            {currentPropertyId && (
-              <button
-                onClick={handleSaveCurrentProperty}
-                className={`text-sm px-3 py-1 rounded ${
-                  saveSuccess
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-orange-600 hover:bg-orange-700'
-                } text-white`}
-              >
-                {saveSuccess ? '✓ Saved' : 'Save Changes'}
-              </button>
-            )}
-            <button
-              onClick={() => {
-                const csv = buildCsv(analysis.cash.yearly as any, analysis.financed.yearly as any);
-                downloadCsv('analysis.csv', csv);
-              }}
-              className="bg-blue-600 text-white text-sm px-3 py-1 rounded hover:bg-blue-700">
-              Export CSV
-            </button>
-          </div>
           <InputsForm value={inputs} onChange={handleInputChange} />
           <ResultsView analysis={analysis} />
         </div>

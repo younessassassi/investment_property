@@ -6,7 +6,7 @@ import { InputState } from '../valuation/inputs';
 interface PropertyManagerProps {
   userId: string;
   currentInputs: InputState;
-  onLoadProperty: (propertyId: string, inputs: InputState) => void;
+  onLoadProperty: (propertyId: string, inputs: InputState, name: string) => void;
   onCreateNewProperty: () => void;
 }
 
@@ -70,7 +70,7 @@ export const PropertyManager: React.FC<PropertyManagerProps> = ({
   };
 
   const handleLoad = (property: SavedProperty) => {
-    onLoadProperty(property.id, property.inputs);
+    onLoadProperty(property.id, property.inputs, property.name);
   };
 
   const handleDelete = async (id: string) => {
