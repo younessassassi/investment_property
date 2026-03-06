@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { initialInputs, InputState, defaultRateByLoanPercent, RateByLoanPercent, defaultPointsByLoanPercent, PointsByLoanPercent } from '../valuation/inputs';
+import { initialInputs, InputState, RateByLoanPercent, PointsByLoanPercent } from '../valuation/inputs';
 import { computeAnalysis } from '../valuation/engine';
 import { ResultsView } from './ResultsView';
 import { InputsForm } from './InputsForm';
@@ -116,8 +116,10 @@ export const App: React.FC = () => {
           <OptimizationPanel
             optimization={optimization}
             recommendation={recommendation}
-            rateByLoanPercent={inputs.rateByLoanPercent || defaultRateByLoanPercent}
-            pointsByLoanPercent={inputs.pointsByLoanPercent || defaultPointsByLoanPercent}
+            rateByLoanPercent={inputs.rateByLoanPercent || {}}
+            pointsByLoanPercent={inputs.pointsByLoanPercent || {}}
+            defaultRate={inputs.interestRate}
+            defaultPoints={inputs.loanPoints}
             onApplyOptimal={(loanPercent, interestRate, loanPoints) => setInputs({ ...inputs, loanPercent, interestRate, loanPoints })}
             onRateMapChange={(rateMap: RateByLoanPercent) => setInputs({ ...inputs, rateByLoanPercent: rateMap })}
             onPointsMapChange={(pointsMap: PointsByLoanPercent) => setInputs({ ...inputs, pointsByLoanPercent: pointsMap })}

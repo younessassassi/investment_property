@@ -61,8 +61,6 @@ export const initialInputs: InputState = {
   interestRate: 0.065,
   loanTermYears: 30,
   loanPoints: 0,
-  rateByLoanPercent: { ...defaultRateByLoanPercent },
-  pointsByLoanPercent: { ...defaultPointsByLoanPercent },
   grossAnnualRent: 36000,
   rentGrowth: 0.03,
   taxes: 4800,

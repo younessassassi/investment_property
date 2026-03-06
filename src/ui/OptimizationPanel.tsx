@@ -8,6 +8,8 @@ interface OptimizationPanelProps {
   recommendation: string;
   rateByLoanPercent: RateByLoanPercent;
   pointsByLoanPercent: PointsByLoanPercent;
+  defaultRate: number;
+  defaultPoints: number;
   onApplyOptimal: (loanPercent: number, interestRate: number, loanPoints: number) => void;
   onRateMapChange: (rateMap: RateByLoanPercent) => void;
   onPointsMapChange: (pointsMap: PointsByLoanPercent) => void;
@@ -18,6 +20,8 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
   recommendation,
   rateByLoanPercent,
   pointsByLoanPercent,
+  defaultRate,
+  defaultPoints,
   onApplyOptimal,
   onRateMapChange,
   onPointsMapChange,
@@ -29,26 +33,32 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
 
   const handleRateChange = (loanPct: number, newRate: string) => {
     const parsed = parseFloat(newRate);
-    const rate = isNaN(parsed) ? '' : parsed;
-    onRateMapChange({ ...rateByLoanPercent, [String(loanPct)]: rate as any });
+    if (isNaN(parsed)) {
+      const { [String(loanPct)]: _, ...rest } = rateByLoanPercent;
+      onRateMapChange(rest);
+    } else {
+      onRateMapChange({ ...rateByLoanPercent, [String(loanPct)]: parsed });
+    }
   };
 
   const handlePointsChange = (loanPct: number, newPoints: string) => {
     const parsed = parseFloat(newPoints);
-    const pts = isNaN(parsed) ? '' : parsed;
-    onPointsMapChange({ ...pointsByLoanPercent, [String(loanPct)]: pts as any });
+    if (isNaN(parsed)) {
+      const { [String(loanPct)]: _, ...rest } = pointsByLoanPercent;
+      onPointsMapChange(rest);
+    } else {
+      onPointsMapChange({ ...pointsByLoanPercent, [String(loanPct)]: parsed });
+    }
   };
 
   const getBestRate = () => {
-    const bestLp = optimization.bestLoanPercent;
-    const tierRate = rateByLoanPercent[String(bestLp)];
-    return tierRate !== undefined ? tierRate : 0;
+    const best = optimization.allScenarios.find(s => s.loanPercent === optimization.bestLoanPercent);
+    return best ? best.analysis.inputs.interestRate : defaultRate;
   };
 
   const getBestPoints = () => {
-    const bestLp = optimization.bestLoanPercent;
-    const tierPoints = pointsByLoanPercent[String(bestLp)];
-    return tierPoints !== undefined ? tierPoints : 0;
+    const best = optimization.allScenarios.find(s => s.loanPercent === optimization.bestLoanPercent);
+    return best ? best.analysis.inputs.loanPoints : defaultPoints;
   };
   
   const chartData = optimization.allScenarios.map(s => ({
@@ -106,12 +116,13 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
               </thead>
               <tbody>
                 {loanPercentOptions.map(lp => {
-                  const downPct = ((1 - lp) * 100).toFixed(0);
                   const currentRate = rateByLoanPercent[String(lp)];
                   const currentPoints = pointsByLoanPercent[String(lp)];
+                  const effectiveRate = currentRate !== undefined ? currentRate : defaultRate;
+                  const effectivePoints = currentPoints !== undefined ? currentPoints : defaultPoints;
                   return (
                     <tr key={lp}>
-                      <td className="p-1 text-gray-700 font-medium">{downPct}% down</td>
+                      <td className="p-1 text-gray-700 font-medium">{((1 - lp) * 100).toFixed(0)}% down</td>
                       <td className="p-1">
                         <div className="flex items-center gap-1">
                           <input
@@ -120,11 +131,11 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                             min="0"
                             value={currentRate ?? ''}
                             onChange={(e) => handleRateChange(lp, e.target.value)}
-                            className="border rounded px-1.5 py-0.5 w-20 text-xs"
-                            placeholder={lp === 0 ? 'N/A' : 'rate'}
+                            className={`border rounded px-1.5 py-0.5 w-20 text-xs ${currentRate === undefined && lp > 0 ? 'text-gray-400' : ''}`}
+                            placeholder={lp === 0 ? 'N/A' : String(defaultRate)}
                             disabled={lp === 0}
                           />
-                          {lp > 0 && currentRate !== undefined && <span className="text-gray-400">{(Number(currentRate) * 100).toFixed(2)}%</span>}
+                          {lp > 0 && <span className={`text-xs ${currentRate !== undefined ? 'text-gray-500' : 'text-gray-400'}`}>{(effectiveRate * 100).toFixed(2)}%</span>}
                         </div>
                       </td>
                       <td className="p-1">
@@ -135,11 +146,11 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                             min="0"
                             value={currentPoints ?? ''}
                             onChange={(e) => handlePointsChange(lp, e.target.value)}
-                            className="border rounded px-1.5 py-0.5 w-20 text-xs"
-                            placeholder={lp === 0 ? 'N/A' : 'points'}
+                            className={`border rounded px-1.5 py-0.5 w-20 text-xs ${currentPoints === undefined && lp > 0 ? 'text-gray-400' : ''}`}
+                            placeholder={lp === 0 ? 'N/A' : String(defaultPoints)}
                             disabled={lp === 0}
                           />
-                          {lp > 0 && currentPoints !== undefined && currentPoints > 0 && <span className="text-gray-400">{(Number(currentPoints) * 100).toFixed(2)}%</span>}
+                          {lp > 0 && effectivePoints > 0 && <span className={`text-xs ${currentPoints !== undefined ? 'text-gray-500' : 'text-gray-400'}`}>{(effectivePoints * 100).toFixed(2)}%</span>}
                         </div>
                       </td>
                     </tr>
@@ -227,10 +238,10 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                 </thead>
                 <tbody>
                   {optimization.allScenarios.map((scenario, i) => {
-                    const tierRate = rateByLoanPercent[String(scenario.loanPercent)];
-                    const displayRate = scenario.loanPercent === 0 ? 'N/A' : (tierRate !== undefined ? `${(Number(tierRate) * 100).toFixed(2)}%` : `${(scenario.analysis.inputs.interestRate * 100).toFixed(2)}%`);
-                    const tierPoints = pointsByLoanPercent[String(scenario.loanPercent)];
-                    const displayPoints = scenario.loanPercent === 0 ? 'N/A' : (tierPoints !== undefined && Number(tierPoints) > 0 ? `${(Number(tierPoints) * 100).toFixed(2)}%` : '0');
+                    const computedRate = scenario.analysis.inputs.interestRate;
+                    const computedPoints = scenario.analysis.inputs.loanPoints;
+                    const displayRate = scenario.loanPercent === 0 ? 'N/A' : `${(computedRate * 100).toFixed(2)}%`;
+                    const displayPoints = scenario.loanPercent === 0 ? 'N/A' : (computedPoints > 0 ? `${(computedPoints * 100).toFixed(2)}%` : '0');
                     return (
                     <tr key={i} className={`${scenario.loanPercent === optimization.bestLoanPercent ? 'bg-green-50 font-medium' : ''} ${i % 2 ? 'bg-gray-25' : ''}`}>
                       <td className="p-2">{(scenario.loanPercent * 100).toFixed(0)}%</td>
